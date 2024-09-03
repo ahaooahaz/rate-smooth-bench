@@ -1,1 +1,1 @@
-# rsb
+# rsb (rate smooth bench)
