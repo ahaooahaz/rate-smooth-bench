@@ -17,7 +17,7 @@ build: $(TARGET)
 $(TARGET): $(SRC) $(VENDER_FILE)
 	$(GO) build -ldflags '${LDFLAGS} -X "$(REPO)/pkg/version.App=$@"' -o $@$(BINARY_SUFFIX) $(REPO)/cmd/$@/
 
-install:
+install: build
 	cp $(TARGET) $${HOME}/.local/bin
 
 clean:

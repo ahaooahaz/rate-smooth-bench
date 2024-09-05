@@ -47,12 +47,12 @@ func (r *Request) Do(ctx context.Context) (err error) {
 		}
 
 		respHeaders := map[string]interface{}{}
-		for k, v := range resp.Header() {
-			respHeaders[k] = v
+		for k := range resp.Header() {
+			respHeaders[k] = resp.Header().Get(k)
 		}
 		if err = luaRuntime.CallByParam(lua.P{
 			Fn:      luaRuntime.GetGlobal("response"),
-			NRet:    0,
+			NRet:    1,
 			Protect: true,
 		}, lua.LNumber(resp.StatusCode()), gopherlua.GoMapToLuaTable(luaRuntime, respHeaders), lua.LString(string(resp.Body()))); err != nil {
 			return err

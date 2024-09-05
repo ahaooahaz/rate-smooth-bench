@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"path/filepath"
 	"sync/atomic"
 
 	"os"
@@ -23,17 +25,17 @@ var rootCmd = &cobra.Command{
 }
 
 var (
-	v                         *bool
-	d                         *time.Duration
-	qps                       *int64
-	url, method, body, script *string
+	v                          *bool
+	d                          *time.Duration
+	qps                        *int64
+	urlx, method, body, script *string
 )
 
 func init() {
 	v = rootCmd.Flags().BoolP("version", "v", false, "show version")
 	d = rootCmd.Flags().DurationP("duration", "d", 5*time.Second, "process duration")
 	qps = rootCmd.Flags().Int64P("qps", "q", 10, "pre second quest count")
-	url = rootCmd.Flags().StringP("url", "u", "http://example.com", "request url")
+	urlx = rootCmd.Flags().StringP("url", "u", "http://example.com", "request url")
 	method = rootCmd.Flags().StringP("method", "m", "GET", "request method")
 	body = rootCmd.Flags().StringP("body", "b", "", "request body")
 	script = rootCmd.Flags().StringP("script", "s", "", "lua script path")
@@ -59,11 +61,28 @@ func root(cmd *cobra.Command, args []string) {
 
 	qc := (*d).Seconds() * float64(*qps)
 	sleep := float64((*d).Nanoseconds()) / qc
-	var wg sync.WaitGroup
+	u, err := url.Parse(*urlx)
+	if err != nil {
+		fmt.Fprint(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+	if !filepath.IsAbs(*script) {
+		var temppath string
+		temppath, err = os.Getwd()
+		if err != nil {
+			panic(err)
+		}
 
+		temppath = filepath.Join(temppath, *script)
+		*script, err = filepath.Abs(temppath)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	var wg sync.WaitGroup
 	var realqc atomic.Int64
 	realqc.Store(0)
-
 out:
 	for {
 		select {
@@ -80,6 +99,7 @@ out:
 				Method:    *method,
 				Body:      *body,
 				LuaScript: *script,
+				URL:       u,
 			}
 			realqc.Add(1)
 			e := r.Do(ctx)
