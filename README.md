@@ -1,3 +1,5 @@
-# rsb (rate smooth bench)
+# rsb(rate smooth bench)
 
-Benchmarking with smooth rate.
+Start benchmark with smooth rate.
+
+
