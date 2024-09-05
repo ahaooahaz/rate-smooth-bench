@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 
 	"os"
 	"sync"
@@ -60,6 +61,9 @@ func root(cmd *cobra.Command, args []string) {
 	sleep := float64((*d).Nanoseconds()) / qc
 	var wg sync.WaitGroup
 
+	var realqc atomic.Int64
+	realqc.Store(0)
+
 out:
 	for {
 		select {
@@ -77,6 +81,7 @@ out:
 				Body:      *body,
 				LuaScript: *script,
 			}
+			realqc.Add(1)
 			e := r.Do(ctx)
 			if e != nil {
 				fmt.Fprint(os.Stderr, e.Error())
@@ -85,8 +90,8 @@ out:
 		}()
 
 	}
-	rps := float64(qc / time.Since(start).Seconds())
+	rps := float64(float64(realqc.Load()) / time.Since(start).Seconds())
 	wg.Wait()
 
-	fmt.Printf("\nREQUEST COUNT: %d\nREAL QPS: %v\n", int64(qc), rps)
+	fmt.Printf("\nREQUEST COUNT: %d\nREAL QPS: %v\n", int64(realqc.Load()), rps)
 }
