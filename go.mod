@@ -6,6 +6,7 @@ require (
 	github.com/go-resty/resty/v2 v2.14.0
 	github.com/spf13/cobra v1.8.1
 	github.com/yuin/gopher-lua v1.1.1
+	golang.org/x/sync v0.7.0
 )
 
 require (

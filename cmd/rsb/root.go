@@ -3,17 +3,19 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/url"
 	"path/filepath"
 	"sync/atomic"
 
 	"os"
-	"sync"
 	"time"
 
 	ihttp "github.com/ahaooahaz/rsb/internal/http"
+	"github.com/ahaooahaz/rsb/pkg/utils/interaction"
 	"github.com/ahaooahaz/rsb/pkg/version"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 )
 
 var rootCmd = &cobra.Command{
@@ -21,7 +23,7 @@ var rootCmd = &cobra.Command{
 	Short:   "rate smooth bench",
 	Long:    "",
 	Example: "rsb -s ./script.lua --url http://example.com -d 5s -qps 10",
-	Run:     root,
+	RunE:    root,
 }
 
 var (
@@ -43,15 +45,14 @@ func init() {
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		interaction.Exit(err)
 	}
 }
 
-func root(cmd *cobra.Command, args []string) {
+func root(cmd *cobra.Command, args []string) (err error) {
 	if *v {
 		fmt.Print(version.GetFullVersionInfo())
-		os.Exit(0)
+		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), *d)
@@ -63,26 +64,26 @@ func root(cmd *cobra.Command, args []string) {
 	sleep := float64((*d).Nanoseconds()) / qc
 	u, err := url.Parse(*urlx)
 	if err != nil {
-		fmt.Fprint(os.Stderr, err.Error())
-		os.Exit(1)
+		return
 	}
 	if *script != "" && !filepath.IsAbs(*script) {
 		var temppath string
 		temppath, err = os.Getwd()
 		if err != nil {
-			panic(err)
+			return
 		}
 
 		temppath = filepath.Join(temppath, *script)
 		*script, err = filepath.Abs(temppath)
 		if err != nil {
-			panic(err)
+			return
 		}
 	}
 
-	var wg sync.WaitGroup
 	var realqc atomic.Int64
-	realqc.Store(0)
+	var eg errgroup.Group
+	eg.SetLimit(math.MaxInt32)
+
 out:
 	for {
 		select {
@@ -92,9 +93,7 @@ out:
 			time.Sleep(time.Duration(sleep) * time.Nanosecond)
 		}
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		eg.Go(func() error {
 			r := &ihttp.Request{
 				Method:    *method,
 				Body:      *body,
@@ -102,16 +101,15 @@ out:
 				URL:       u,
 			}
 			realqc.Add(1)
-			e := r.Do(ctx)
-			if e != nil {
-				fmt.Fprint(os.Stderr, e.Error())
-				os.Exit(1)
-			}
-		}()
-
+			return r.Do(ctx)
+		})
 	}
 	rps := float64(float64(realqc.Load()) / time.Since(start).Seconds())
-	wg.Wait()
+	err = eg.Wait()
+	if err != nil {
+		return
+	}
 
 	fmt.Printf("REQUEST COUNT: %d\nREAL QPS: %v\n", int64(realqc.Load()), rps)
+	return
 }
