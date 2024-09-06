@@ -6,7 +6,8 @@ TARGET = rsb
 COMMIT_ID ?= $(shell git rev-parse --short HEAD)
 BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 VERSION ?= 0.0.1
-LDFLAGS += -X "$(REPO)/pkg/version.BuildTS=$(BUILT_TS)"
+BUILD_TS ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+LDFLAGS += -X "$(REPO)/pkg/version.BuildTS=$(BUILD_TS)"
 LDFLAGS += -X "$(REPO)/pkg/version.GitHash=$(COMMIT_ID)"
 LDFLAGS += -X "$(REPO)/pkg/version.Version=$(VERSION)"
 LDFLAGS += -X "$(REPO)/pkg/version.GitBranch=$(BRANCH)"

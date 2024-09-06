@@ -66,7 +66,7 @@ func root(cmd *cobra.Command, args []string) {
 		fmt.Fprint(os.Stderr, err.Error())
 		os.Exit(1)
 	}
-	if !filepath.IsAbs(*script) {
+	if *script != "" && !filepath.IsAbs(*script) {
 		var temppath string
 		temppath, err = os.Getwd()
 		if err != nil {
@@ -113,5 +113,5 @@ out:
 	rps := float64(float64(realqc.Load()) / time.Since(start).Seconds())
 	wg.Wait()
 
-	fmt.Printf("\nREQUEST COUNT: %d\nREAL QPS: %v\n", int64(realqc.Load()), rps)
+	fmt.Printf("REQUEST COUNT: %d\nREAL QPS: %v\n", int64(realqc.Load()), rps)
 }
