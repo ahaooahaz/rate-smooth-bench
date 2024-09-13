@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/url"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 
 	"os"
@@ -31,6 +32,7 @@ var (
 	d                          *time.Duration
 	qps                        *int64
 	urlx, method, body, script *string
+	headersx                   *[]string
 )
 
 func init() {
@@ -41,6 +43,7 @@ func init() {
 	method = rootCmd.Flags().StringP("method", "m", "GET", "request method")
 	body = rootCmd.Flags().StringP("body", "b", "", "request body")
 	script = rootCmd.Flags().StringP("script", "s", "", "lua script path")
+	headersx = rootCmd.Flags().StringArrayP("header", "H", []string{}, "request header")
 }
 
 func Execute() {
@@ -54,8 +57,7 @@ func root(cmd *cobra.Command, args []string) (err error) {
 		fmt.Print(version.GetFullVersionInfo())
 		return
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), *d)
+	ctx, cancel := context.WithTimeout(cmd.Context(), *d)
 	defer cancel()
 
 	start := time.Now()
@@ -66,6 +68,15 @@ func root(cmd *cobra.Command, args []string) (err error) {
 	if err != nil {
 		return
 	}
+	headers := map[string]string{}
+	for _, h := range *headersx {
+		kv := strings.Split(h, ":")
+		if len(kv) != 2 {
+			return
+		}
+		headers[kv[0]] = kv[1]
+	}
+
 	if *script != "" && !filepath.IsAbs(*script) {
 		var temppath string
 		temppath, err = os.Getwd()
@@ -80,7 +91,7 @@ func root(cmd *cobra.Command, args []string) (err error) {
 		}
 	}
 
-	var realqc atomic.Int64
+	var realqc, reqid atomic.Int64
 	var eg errgroup.Group
 	eg.SetLimit(math.MaxInt32)
 
@@ -95,8 +106,10 @@ out:
 
 		eg.Go(func() error {
 			r := &ihttp.Request{
+				ID:        reqid.Add(1),
 				Method:    *method,
 				Body:      *body,
+				Headers:   headers,
 				LuaScript: *script,
 				URL:       u,
 			}
@@ -104,12 +117,13 @@ out:
 			return r.Do(ctx)
 		})
 	}
-	rps := float64(float64(realqc.Load()) / time.Since(start).Seconds())
+	dur := time.Since(start)
+	rps := float64(float64(realqc.Load()) / dur.Seconds())
 	err = eg.Wait()
 	if err != nil {
 		return
 	}
 
-	fmt.Printf("REQUEST COUNT: %d\nREAL QPS: %v\n", int64(realqc.Load()), rps)
+	fmt.Printf("REQUEST COUNT: %d\nREAL DUR: %v\nREAL QPS: %v\n", int64(realqc.Load()), dur.String(), rps)
 	return
 }
