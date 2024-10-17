@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/ahaooahaz/rsb/pkg/utils/gopherlua"
+	"github.com/ahaooahaz/rate-smooth-bench/pkg/utils/gopherlua"
 	"github.com/go-resty/resty/v2"
 	lua "github.com/yuin/gopher-lua"
 )

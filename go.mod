@@ -1,4 +1,4 @@
-module github.com/ahaooahaz/rsb
+module github.com/ahaooahaz/rate-smooth-bench
 
 go 1.22.6
 

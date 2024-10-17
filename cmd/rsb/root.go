@@ -12,9 +12,9 @@ import (
 	"os"
 	"time"
 
-	ihttp "github.com/ahaooahaz/rsb/internal/http"
-	"github.com/ahaooahaz/rsb/pkg/utils/interaction"
-	"github.com/ahaooahaz/rsb/pkg/version"
+	ihttp "github.com/ahaooahaz/rate-smooth-bench/internal/http"
+	"github.com/ahaooahaz/rate-smooth-bench/pkg/utils/interaction"
+	"github.com/ahaooahaz/rate-smooth-bench/pkg/version"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
