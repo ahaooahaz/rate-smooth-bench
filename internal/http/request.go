@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/ahaooahaz/rsb/pkg/utils/gopherlua"
+	"github.com/ahaooahaz/rate-smooth-bench/pkg/utils/gopherlua"
 	"github.com/go-resty/resty/v2"
 	lua "github.com/yuin/gopher-lua"
 )
@@ -17,7 +17,7 @@ type Request struct {
 	ID        int64
 	Method    string
 	URL       *url.URL
-	Headers   map[string]string
+	Header    http.Header
 	Body      interface{}
 	LuaScript string
 
@@ -52,7 +52,12 @@ func (r *Request) Do(ctx context.Context) (err error) {
 		defer r._lua.Close()
 	}
 
-	req := client.R().SetHeaders(r.Headers).SetBody(r.Body).SetDoNotParseResponse(true)
+	header := make(map[string]string)
+	for k, v := range r.Header {
+		header[k] = v[0]
+	}
+
+	req := client.R().SetHeaders(header).SetBody(r.Body).SetDoNotParseResponse(true)
 	var resp *resty.Response
 	switch r.Method {
 	case http.MethodGet:
