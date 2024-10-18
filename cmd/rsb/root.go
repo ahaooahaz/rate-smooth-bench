@@ -45,7 +45,7 @@ func init() {
 	ArgsInst.URL = rootCmd.Flags().StringP("url", "u", "", "request url")
 	ArgsInst.Method = rootCmd.Flags().StringP("method", "m", "GET", "request method")
 	ArgsInst.Body = rootCmd.Flags().StringP("body", "b", "", "request body")
-	ArgsInst.Script = rootCmd.Flags().StringP("script", "s", "", "lua script path")
+	ArgsInst.ScriptPath = rootCmd.Flags().StringP("script", "s", "", "lua script path")
 	ArgsInst.HeaderRaw = rootCmd.Flags().StringArrayP("header", "H", []string{}, "request header")
 }
 func Execute() {
@@ -55,15 +55,16 @@ func Execute() {
 }
 
 type Args struct {
-	Version   *bool          `json:"version"`
-	Duration  *time.Duration `json:"duration" validate:"required"`
-	QPS       *int64         `json:"qps" validate:"gte=1"`
-	URL       *string        `json:"url" validate:"required,url"`
-	Method    *string        `json:"method" validate:"required,oneof=GET POST"`
-	Body      *string        `json:"body"`
-	Script    *string        `json:"script"`
-	HeaderRaw *[]string      `json:"header"`
-	Header    http.Header    `json:"-"`
+	Version    *bool          `json:"version"`
+	Duration   *time.Duration `json:"duration" validate:"required"`
+	QPS        *int64         `json:"qps" validate:"gte=1"`
+	URL        *string        `json:"url" validate:"required,url"`
+	Method     *string        `json:"method" validate:"required,oneof=GET POST"`
+	Body       *string        `json:"body"`
+	ScriptPath *string        `json:"script"`
+	HeaderRaw  *[]string      `json:"header"`
+	Header     http.Header    `json:"-"`
+	ScriptRaw  []byte         `json:"-"`
 }
 
 func (a *Args) Validate() (err error) {
@@ -80,18 +81,26 @@ func (a *Args) Validate() (err error) {
 		a.Header.Add(kv[0], kv[1])
 	}
 
-	if *ArgsInst.Script != "" && !filepath.IsAbs(*ArgsInst.Script) {
+	if *ArgsInst.ScriptPath != "" && !filepath.IsAbs(*ArgsInst.ScriptPath) {
 		var temppath string
 		temppath, err = os.Getwd()
 		if err != nil {
 			return
 		}
 
-		temppath = filepath.Join(temppath, *ArgsInst.Script)
-		*ArgsInst.Script, err = filepath.Abs(temppath)
+		temppath = filepath.Join(temppath, *ArgsInst.ScriptPath)
+		*ArgsInst.ScriptPath, err = filepath.Abs(temppath)
 		if err != nil {
 			return
 		}
+
+		var content []byte
+		content, err = os.ReadFile(*ArgsInst.ScriptPath)
+		if err != nil {
+			return
+		}
+
+		ArgsInst.ScriptRaw = content
 	}
 
 	validate := validator.New()
@@ -156,12 +165,12 @@ out:
 
 		eg.Go(func() error {
 			r := &ihttp.Request{
-				ID:        reqid.Add(1),
-				Method:    *ArgsInst.Method,
-				Body:      *ArgsInst.Body,
-				Header:    ArgsInst.Header,
-				LuaScript: *ArgsInst.Script,
-				URL:       u,
+				ID:           reqid.Add(1),
+				Method:       *ArgsInst.Method,
+				Body:         *ArgsInst.Body,
+				Header:       ArgsInst.Header,
+				LuaScriptRaw: string(ArgsInst.ScriptRaw),
+				URL:          u,
 			}
 			realqc.Add(1)
 			return r.Do(ctx)
@@ -174,6 +183,6 @@ out:
 		return
 	}
 
-	fmt.Printf("REQUEST COUNT: %d\nREAL DUR: %v\nREAL QPS: %v\n", int64(realqc.Load()), dur.String(), rps)
+	fmt.Printf("REQUEST COUNT: %d\nREAL DURATION: %v\nREAL QPS: %v\n", int64(realqc.Load()), dur.String(), rps)
 	return
 }

@@ -14,12 +14,12 @@ import (
 )
 
 type Request struct {
-	ID        int64
-	Method    string
-	URL       *url.URL
-	Header    http.Header
-	Body      interface{}
-	LuaScript string
+	ID           int64
+	Method       string
+	URL          *url.URL
+	Header       http.Header
+	Body         interface{}
+	LuaScriptRaw string
 
 	_lua *lua.LState
 }
@@ -29,9 +29,9 @@ func (r *Request) init() (err error) {
 		return fmt.Errorf("request is nil")
 	}
 
-	if r.LuaScript != "" {
+	if r.LuaScriptRaw != "" {
 		r._lua = lua.NewState()
-		err = r._lua.DoFile(r.LuaScript)
+		err = r._lua.DoString(r.LuaScriptRaw)
 		if err != nil {
 			return
 		}
