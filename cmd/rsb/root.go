@@ -119,13 +119,13 @@ func (a *Args) Validate() (err error) {
 }
 
 func root(cmd *cobra.Command, args []string) (err error) {
-	err = ArgsInst.Validate()
-	if err != nil {
+	if *ArgsInst.Version {
+		fmt.Print(version.GetFullVersionInfo())
 		return
 	}
 
-	if *ArgsInst.Version {
-		fmt.Print(version.GetFullVersionInfo())
+	err = ArgsInst.Validate()
+	if err != nil {
 		return
 	}
 
